@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dashboard — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0"><div class="spinner"></div></div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<div class="page-watermark"></div>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check onboarding
+  if (!App.hasProfile()) {
+    App.applyMode();
+    App.showOnboarding(() => location.reload());
+    return;
+  }
+
+  App.initPage('dashboard');
+  App.renderBottomNav('dashboard');
+  const data = await App.loadData();
+  const p    = App.getProgress();
+  const profile = App.getProfile();
+
+  // Compute stats
+  let totalDone=0, totalQz=0, totalPct=0, lastSubj=null, lastCh=null, lastTs=0;
+  data.subjects.forEach(s => {
+    const sp = p[s.id] || {};
+    totalDone += (sp.done||[]).length;
+    Object.values(sp.scores||{}).forEach(sc => { totalQz++; totalPct += sc.pct; });
+    if (sp.last && (sp.last.ts||0) > lastTs) { lastSubj=s; lastCh=sp.last; lastTs=sp.last.ts||0; }
+  });
+  const avgQ    = totalQz ? Math.round(totalPct/totalQz) : 0;
+  const streak  = parseInt(localStorage.getItem('vm_streak')||'0');
+  const motd    = localStorage.getItem('vm_motd') || 'Every expert was once a beginner.';
+  const m=localStorage.getItem('vm_mode')||'light';
+  const btn=document.getElementById('modeBtn');if(btn)btn.innerHTML=m==='dark'?'☀️':'🌙';
+  document.querySelectorAll('.mt-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+
+  // Initialize real-time sync
+  App.initRealTimeSync();
+
+  const greeting = getGreeting();
+  const tasks = TodoPanel.getTasks().slice(0, 3);
+
+  const main = document.getElementById('mainArea');
+  main.innerHTML = `
+    <!-- Mobile-First Dashboard -->
+    <div class="dashboard-mobile page-animate">
+      
+      <!-- Header -->
+      <div class="page-head" style="padding: 12px 0;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px">${greeting}</div>
+        <h1 style="margin:0; font-size:1.4rem;">Hey, ${VidyaSec.sanitize(profile?.name || 'Explorer')}! 👋</h1>
+      </div>
+
+      <!-- Quick Stats Row -->
+      <div class="quick-stats-row">
+        <div class="quick-stat">
+          <div class="value">${streak}</div>
+          <div class="label">🔥 Streak</div>
+        </div>
+        <div class="quick-stat">
+          <div class="value">${totalDone}</div>
+          <div class="label">✓ Done</div>
+        </div>
+        <div class="quick-stat">
+          <div class="value">${avgQ}%</div>
+          <div class="label">Quiz Avg</div>
+        </div>
+      </div>
+
+      <!-- Continue Learning -->
+      ${lastCh ? `
+      <div class="continue-card-mobile touchable" onclick="location.href='chapter.html?subject=${lastSubj?.id||''}&chapter=${lastCh.cid}'">
+        <div class="label">Resume Learning</div>
+        <div class="title">${VidyaSec.sanitize(lastCh.title)}</div>
+        <div class="subtitle">${VidyaSec.sanitize(lastSubj?.name||'')} • Chapter ${lastCh.cid}</div>
+        <button class="btn" style="margin-top:12px;">Continue →</button>
+      </div>
+      ` : `
+      <div class="continue-card-mobile touchable" onclick="location.href='subject.html?id=${profile?.favourite||'mathematics'}'">
+        <div class="label">Get Started</div>
+        <div class="title">Ready to score 100?</div>
+        <div class="subtitle">Pick a subject and start learning today</div>
+        <button class="btn" style="margin-top:12px;">Start Learning →</button>
+      </div>
+      `}
+
+      <!-- Quick Actions -->
+      <div class="progress-section-mobile">
+        <h3>📚 Quick Access</h3>
+        <div class="content-grid-mobile" style="margin-top:12px;">
+          <a href="subjects.html" class="content-option-mobile">
+            <div class="icon">📖</div>
+            <div class="label">Subjects</div>
+          </a>
+          <a href="bookmarks.html" class="content-option-mobile">
+            <div class="icon">🔖</div>
+            <div class="label">Saved</div>
+          </a>
+          <a href="#" onclick="TodoPanel.show(); return false;" class="content-option-mobile">
+            <div class="icon">✓</div>
+            <div class="label">Tasks</div>
+            <div class="count">${tasks.length} pending</div>
+          </a>
+          <a href="profile.html" class="content-option-mobile">
+            <div class="icon">👤</div>
+            <div class="label">Profile</div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Tasks Preview -->
+      ${tasks.length > 0 ? `
+      <div class="tasks-preview-mobile">
+        <h3>
+          <span>📝 Up Next</span>
+          <a href="#" onclick="TodoPanel.show(); return false;" style="font-size:0.8rem; color:var(--accent);">View all</a>
+        </h3>
+        ${tasks.map(t => `
+          <div class="task-item-mobile">
+            <span>${t.icon || '📌'}</span>
+            <div style="flex:1;">
+              <div style="font-weight:500; font-size:0.9rem;">${VidyaSec.sanitize(t.text)}</div>
+              <div style="font-size:0.75rem; color:var(--ink-4);">${t.subject || ''}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      ` : ''}
+    </div>
+  `;
+
+  // Recent todos
+  const todos = TodoPanel.getData().slice(0,5);
+  document.getElementById('todoPreview').innerHTML = todos.length
+    ? `<div class="todo-items">${todos.map(t=>TodoPanel.itemHTML(t)).join('')}</div>`
+    : `<div class="premium-card" style="padding:24px; text-align:center; color:var(--ink-4)">
+        <div style="font-size:32px; margin-bottom:12px">✨</div>
+        <p style="margin-bottom:16px">No tasks for today.</p>
+        <a href="todo.html" class="btn btn-secondary btn-sm">Add a Goal</a>
+      </div>`;
+
+  // Progress graph + stars (clean + lightweight)
+  const sMeta = [
+    {id:'mathematics', name:'Math', icon:'📐', c:'var(--math-c)'},
+    {id:'science', name:'Science', icon:'🔬', c:'var(--sci-c)'},
+    {id:'social-science', name:'SST', icon:'🌍', c:'var(--soc-c)'},
+    {id:'english', name:'English', icon:'📚', c:'var(--eng-c)'},
+  ];
+  const graph = document.createElement('div');
+  graph.className = 'card-3d au-2';
+  graph.style.marginBottom = '20px';
+  graph.innerHTML = `
+    <div class="card-accent-bar"></div>
+    <div class="card-head"><h3>📈 Progress Graph</h3><span class="chip chip-b">Stars + %</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="pgGrid"></div>
+    </div>`;
+  main.insertBefore(graph, document.getElementById('subjGrid').parentElement);
+
+  const pg = graph.querySelector('#pgGrid');
+  pg.innerHTML = sMeta.map(s=>{
+    const subj = data.subjects.find(x=>x.id===s.id);
+    const pct = subj ? App.getSubjPct(s.id, subj) : 0;
+    const stars = Math.max(0, Math.min(5, Math.round(pct/20)));
+    return `
+      <div class="gcard" style="padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-weight:900">${s.icon} ${s.name}</div>
+          <div style="font-weight:900;color:${s.c}">${pct}%</div>
+        </div>
+        <div class="pbar pbar-lg"><div class="pfill" style="width:${pct}%;background:linear-gradient(90deg,${s.c},var(--accent-2))"></div></div>
+        <div style="margin-top:10px;font-size:.8rem;color:var(--ink-3);display:flex;gap:3px">
+          ${Array.from({length:5}).map((_,i)=>`<span style="color:${i<stars?s.c:'var(--ink-5)'}">${i<stars?'★':'☆'}</span>`).join('')}
+          <span style="margin-left:auto;color:var(--ink-4);font-weight:700">${stars}/5</span>
+        </div>
+      </div>`;
+  }).join('');
+});
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+</script>
+</body>
+</html>

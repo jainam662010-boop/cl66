@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Profile — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0"><div class="spinner"></div></div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!App.hasProfile()) { location.href = 'dashboard.html'; return; }
+  
+  App.initPage('profile');
+  App.renderBottomNav('profile');
+  
+  const data = await App.loadData();
+  const profile = App.getProfile();
+  const p = App.getProgress();
+  
+  // Calculate stats
+  let totalDone = 0, totalQz = 0, totalPct = 0;
+  data.subjects.forEach(s => {
+    const sp = p[s.id] || {};
+    totalDone += (sp.done || []).length;
+    Object.values(sp.scores || {}).forEach(sc => { totalQz++; totalPct += sc.pct; });
+  });
+  const avgQ = totalQz ? Math.round(totalPct / totalQz) : 0;
+  const streak = parseInt(localStorage.getItem('vm_streak') || '0');
+  
+  const main = document.getElementById('mainArea');
+  main.innerHTML = `
+    <div class="page-animate">
+      <!-- Profile Header -->
+      <div class="profile-header-mobile">
+        <div class="profile-avatar-mobile">${(profile.name || 'U').charAt(0).toUpperCase()}</div>
+        <h2>${VidyaSec.sanitize(profile.name || 'User')}</h2>
+        <p>${profile.role === 'teacher' ? 'Teacher' : 'Student'} • Class 10</p>
+      </div>
+      
+      <!-- Stats Cards -->
+      <div class="quick-stats-row" style="margin-bottom: 20px;">
+        <div class="quick-stat">
+          <div class="value">${streak}</div>
+          <div class="label">🔥 Streak</div>
+        </div>
+        <div class="quick-stat">
+          <div class="value">${totalDone}</div>
+          <div class="label">✓ Lessons</div>
+        </div>
+        <div class="quick-stat">
+          <div class="value">${avgQ}%</div>
+          <div class="label">Quiz Avg</div>
+        </div>
+      </div>
+      
+      <!-- Menu -->
+      <div class="profile-menu-mobile">
+        <a href="#" onclick="App._showProfileEdit(); return false;" class="profile-menu-item">
+          <span class="icon">✏️</span>
+          <span class="label">Edit Profile</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="dashboard.html" class="profile-menu-item">
+          <span class="icon">🏠</span>
+          <span class="label">Dashboard</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="bookmarks.html" class="profile-menu-item">
+          <span class="icon">🔖</span>
+          <span class="label">Saved Items</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="#" onclick="TodoPanel.show(); return false;" class="profile-menu-item">
+          <span class="icon">✓</span>
+          <span class="label">My Tasks</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="#" onclick="ThemeEngine.toggle(); return false;" class="profile-menu-item">
+          <span class="icon">🎨</span>
+          <span class="label">Customize Theme</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="#" onclick="App.logout(); return false;" class="profile-menu-item" style="color: #EF4444;">
+          <span class="icon">🚪</span>
+          <span class="label">Logout</span>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+  `;
+});
+</script>
+</body>
+</html>
